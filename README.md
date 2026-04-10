@@ -1,51 +1,127 @@
-# DevOps Engineering Assignment: Real-Time Chat App
+# DevOps Assignment – Real-Time WebSocket Application Deployment
 
-Welcome! In this assignment, you are tasked with fixing a broken staging environment for our Real-Time Chat web application. 
+##  Overview
+This project demonstrates the deployment of a real-time WebSocket-based chat application using **Docker, NGINX reverse proxy, and CI/CD automation** in a production-style environment.
 
-A junior developer recently attempted to containerize this application using Docker and NGINX, but the deployment is currently failing on multiple fronts. Your job is to debug their configuration files and get the application fully operational via Docker Compose.
+The goal of this assignment was to debug a **deliberately misconfigured system**, fix deployment issues, and make the application accessible via a public IP.
 
-## System Architecture
+---
 
-The application is built using two primary containers:
-1. **Backend (`backend`)**: A Python-based FastAPI server operating on Port 8000. It handles persistent, real-time WebSocket connections on the `/ws` endpoint.
-2. **Frontend Proxy (`nginx`)**: An NGINX container mapped to Port 80. It is responsible for serving the static files from the `frontend/` directory, while simultaneously intercepting and reverse-proxying all WebSocket upgrade requests down to the backend container.
+##  Architecture
 
-### Directory Structure
-```text
-realtime-chat-app/
-├── app/
-│   ├── main.py              # FastAPI application server
-│   └── requirements.txt     # Python dependencies
-├── frontend/
-│   └── index.html           # Simple, styled single-page HTML client
-├── Dockerfile               # Instructions to build the Python backend image
-├── docker-compose.yml       # Composes both NGINX and Python Backend services
-└── nginx.conf               # Configuration for NGINX routing and WS proxy
-```
+![Architecture](./assets/architecture.png)
 
-## Your Mission
+---
 
-If you run `docker-compose up -d --build` right now, the containers will start, but the application will not work. You need to debug and fix the following three critical issues:
+##  Docker Setup
 
-### 1. Fix the Docker Binding (Container Networking)
-The FastAPI backend container is refusing external connections—even from the NGINX container! 
-* **Hint:** Look at how the `uvicorn` command is binding its host in the `Dockerfile`. Inside a Docker container, binding to `localhost` or `127.0.0.1` makes the service unreachable to other containers on the Docker network.
+- Multi-container setup using **Docker Compose**
+- Backend service built using FastAPI
+- NGINX container for reverse proxy and frontend serving
+- Containers communicate using Docker internal networking
+- Restart policies added for resilience
 
-### 2. Fix the Missing User Interface (Volume Mounts)
-If you navigate to `http://localhost` right now, you will likely see the default "Welcome to NGINX" page instead of the chat application.
-* **Hint:** Check `docker-compose.yml`. How is the `nginx` container supposed to get access to the static HTML files located in the local `frontend/` directory? 
+---
 
-### 3. Fix the WebSocket Tunnel (Reverse Proxy Configuration)
-Once the UI is visible, the chat app will continuously say "Disconnected" because the WebSocket handshake is failing.
-* **Hint #1:** In `nginx.conf`, the `proxy_pass` is attempting to route to `localhost:8000`. Does `localhost` mean the same thing inside the NGINX container as it does on your laptop? How do containers communicate with each other in a Compose network?
-* **Hint #2:** NGINX requires explicit headers to convert standard HTTP traffic into a persistent WebSocket tunnel. Some of the required `Upgrade` headers appear to be missing or disabled.
+##  NGINX Reverse Proxy
 
-## Deliverables
+NGINX is configured to:
+- Serve frontend static files
+- Route WebSocket requests (`/ws`) to backend container
+- Handle WebSocket upgrade headers properly
+- Maintain persistent connections using timeout settings
 
-Submit your finalized, corrected codebase. We will evaluate your submission by executing:
+---
+
+## WebSocket Handling
+
+To ensure real-time communication:
+- Configured `Upgrade` and `Connection` headers
+- Used `proxy_http_version 1.1`
+- Increased timeout values for long-lived connections
+
+This ensures multiple users can chat in real-time across different browser tabs.
+
+---
+
+##  Cloud Deployment
+
+- Deployed on **AWS EC2 (Ubuntu)**
+- Docker and Docker Compose installed on server
+- Application accessible via public IP: 13.234.67.230
+
+  **http://13.234.67.230**
+
+---
+
+##  CI/CD Pipeline (GitHub Actions)
+
+![App UI](./assets/cicd.png)
+![Chat Working](./assets/chat-working.png)
+
+A CI/CD pipeline is implemented using GitHub Actions:
+
+### Workflow:
+1. Triggered on every push to `main`
+2. Connects to EC2 via SSH
+3. Pulls latest code
+4. Rebuilds Docker containers
+5. Restarts services automatically
+
+This ensures **automated and consistent deployments**.
+
+---
+
+##  Issues Identified & Fixes
+
+### Issue 1: NGINX using localhost
+- **Problem:** NGINX was trying to connect to `localhost`, which refers to itself inside the container  
+- **Fix:** Updated to use Docker service name  
+proxy_pass http://chat-backend:8000;
+
+
+---
+
+### Issue 2: WebSocket not working
+- **Problem:** Missing WebSocket upgrade headers  
+- **Fix:** Added required headers:
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "Upgrade";
+
+
+---
+
+### Issue 3: Default NGINX page showing
+- **Problem:** Frontend files were not mounted  
+- **Fix:** Mounted frontend directory:
+./frontend:/usr/share/nginx/html
+
+
+---
+
+### Issue 4: Backend not accessible
+- **Problem:** Backend bound to `127.0.0.1`  
+- **Fix:** Changed to: --host 0.0.0.0
+
+
+---
+
+### Issue 5: WebSocket connection timeout
+- **Problem:** Connection dropped due to default timeout  
+- **Fix:** Increased timeout:proxy_read_timeout 86400;
+
+
+---
+
+##  How to Run Locally
 
 ```bash
+git clone <your-repo-link>
+cd DevOps-Assignment
+
 docker-compose up -d --build
 ```
-
-If everything is configured correctly, we should instantly see the UI and be able to open multiple browser tabs at `http://localhost` to chat back and forth in real-time. Good luck!
+Open:
+```bash
+http://localhost
+```

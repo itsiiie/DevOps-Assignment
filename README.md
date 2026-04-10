@@ -57,9 +57,10 @@ This ensures multiple users can chat in real-time across different browser tabs.
 ##  CI/CD Pipeline (GitHub Actions)
 
 ![App UI](./assets/cicd.png)
-![Chat Working](./assets/chat-working.png)
-
 A CI/CD pipeline is implemented using GitHub Actions:
+
+![Chat Working](./assets/chat-working.png)
+Working Chat-App (Multiple Tabs):
 
 ### Workflow:
 1. Triggered on every push to `main`
